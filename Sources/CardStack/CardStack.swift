@@ -1,25 +1,39 @@
+//
+//  CardStack.swift
+//  Chinese Zodiac
+//
+//  Created by Jovian Lin on 10/1/23.
+//
+
 import SwiftUI
 
 /**
  A SwiftUI view that arranges its children in an interactive deck of cards.
  */
 public struct CardStack<Data, Content>: View where Data: RandomAccessCollection, Data.Element: Identifiable, Content: View {
-    @State private var currentIndex: Double = 0.0
-    @State private var previousIndex: Double = 0.0
+    @State private var currentIndex: Double = 0
+    @State private var previousIndex: Double = 0
     
     private let data: Data
-    @ViewBuilder private let content: (Data.Element) -> Content
+    private let swipeDistance: Double
     @Binding var finalCurrentIndex: Int
+    @ViewBuilder private let content: (Data.Element) -> Content
+    
     
     /// Creates a stack with the given content
     /// - Parameters:
     ///   - data: The identifiable data for computing the list.
     ///   - currentIndex: The index of the topmost card in the stack
+    ///   - swipeDistance: The travel distance required to transition to the previous or next element
     ///   - content: A view builder that creates the view for a single card
-    public init(_ data: Data, currentIndex: Binding<Int> = .constant(0), @ViewBuilder content: @escaping (Data.Element) -> Content) {
+    public init(_ data: Data,
+                currentIndex: Binding<Int> = .constant(0),
+                swipeDistance: Double = 300,
+                @ViewBuilder content: @escaping (Data.Element) -> Content) {
         self.data = data
+        self._finalCurrentIndex = currentIndex
+        self.swipeDistance = swipeDistance
         self.content = content
-        _finalCurrentIndex = currentIndex
     }
     
     public var body: some View {
@@ -39,40 +53,31 @@ public struct CardStack<Data, Content>: View where Data: RandomAccessCollection,
         DragGesture()
             .onChanged { value in
                 withAnimation(.interactiveSpring()) {
-                    let x = (value.translation.width / 300) - previousIndex
-                    self.currentIndex = -x
+                    let diff = value.translation.width / swipeDistance
+                    self.currentIndex = previousIndex - diff
                 }
             }
             .onEnded { value in
-                self.snapToNearestAbsoluteIndex(value.predictedEndTranslation)
+                self.snapToNearestAbsoluteIndex()
                 self.previousIndex = self.currentIndex
             }
     }
     
-    private func snapToNearestAbsoluteIndex(_ predictedEndTranslation: CGSize) {
-        withAnimation(.interpolatingSpring(stiffness: 300, damping: 40)) {
-            let translation = predictedEndTranslation.width
-            if abs(translation) > 200 {
-                if translation > 0 {
-                    self.goTo(round(self.previousIndex) - 1)
-                } else {
-                    self.goTo(round(self.previousIndex) + 1)
-                }
-            } else {
-                self.currentIndex = round(currentIndex)
-            }
+    private func snapToNearestAbsoluteIndex() {
+        withAnimation(.interpolatingSpring(stiffness: 500, damping: 40)) { // TODO: Extract the stiffness and damping
+            self.updateIndices()
         }
     }
     
-    private func goTo(_ index: Double) {
-        let maxIndex = Double(data.count - 1)
+    private func updateIndices() {
+        var index = round(self.currentIndex)
+        let maxIndex = Double(self.data.count - 1)
         if index < 0 {
-            self.currentIndex = 0
+            index = 0
         } else if index > maxIndex {
-            self.currentIndex = maxIndex
-        } else {
-            self.currentIndex = index
+            index = maxIndex
         }
+        self.currentIndex = index
         self.finalCurrentIndex = Int(index)
     }
     
@@ -169,4 +174,3 @@ struct CardStackView_Previews: PreviewProvider {
     }
 
 }
-
