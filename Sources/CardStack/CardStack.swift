@@ -1,10 +1,3 @@
-//
-//  CardStack.swift
-//  Chinese Zodiac
-//
-//  Created by Jovian Lin on 10/1/23.
-//
-
 import SwiftUI
 
 /**
@@ -108,7 +101,7 @@ public struct CardStack<Data, Content>: View where Data: RandomAccessCollection,
     }
     
     private func currentPosition(for index: Int) -> Double {
-        currentIndex - Double(index)
+        self.currentIndex - Double(index)
     }
     
     private func swingOutMultiplier(_ progress: Double) -> Double {
