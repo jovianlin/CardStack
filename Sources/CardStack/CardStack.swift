@@ -1,3 +1,10 @@
+//
+//  CardStack.swift
+//  Chinese Zodiac
+//
+//  Updated by Jovian Lin on 10/1/23.
+//
+
 import SwiftUI
 
 /**
@@ -9,6 +16,9 @@ public struct CardStack<Data, Content>: View where Data: RandomAccessCollection,
     
     private let data: Data
     private let swipeDistance: Double
+    private let stiffness: Double
+    private let damping: Double
+    
     @Binding var finalCurrentIndex: Int
     @ViewBuilder private let content: (Data.Element) -> Content
     
@@ -18,14 +28,20 @@ public struct CardStack<Data, Content>: View where Data: RandomAccessCollection,
     ///   - data: The identifiable data for computing the list.
     ///   - currentIndex: The index of the topmost card in the stack
     ///   - swipeDistance: The travel distance required to transition to the previous or next element
+    ///   - stiffness: The stiffness of the interpolating spring animation
+    ///   - damping: The spring damping value of the interpolating spring animation
     ///   - content: A view builder that creates the view for a single card
     public init(_ data: Data,
                 currentIndex: Binding<Int> = .constant(0),
                 swipeDistance: Double = 300,
+                stiffness: Double = 500,
+                damping: Double = 40,
                 @ViewBuilder content: @escaping (Data.Element) -> Content) {
         self.data = data
         self._finalCurrentIndex = currentIndex
         self.swipeDistance = swipeDistance
+        self.stiffness = stiffness
+        self.damping = damping
         self.content = content
     }
     
@@ -40,6 +56,13 @@ public struct CardStack<Data, Content>: View where Data: RandomAccessCollection,
             }
         }
         .highPriorityGesture(dragGesture)
+        .onAppear(perform: {
+            withAnimation(.interpolatingSpring(stiffness: stiffness, damping: damping)) {
+                self.currentIndex = self.getSafeIndex(Double(self.finalCurrentIndex))
+                self.previousIndex = self.currentIndex
+            }
+        })
+
     }
     
     private var dragGesture: some Gesture {
@@ -57,21 +80,26 @@ public struct CardStack<Data, Content>: View where Data: RandomAccessCollection,
     }
     
     private func snapToNearestAbsoluteIndex() {
-        withAnimation(.interpolatingSpring(stiffness: 500, damping: 40)) { // TODO: Extract the stiffness and damping
+        withAnimation(.interpolatingSpring(stiffness: stiffness, damping: damping)) {
             self.updateIndices()
         }
     }
     
-    private func updateIndices() {
-        var index = round(self.currentIndex)
+    private func getSafeIndex(_ index: Double) -> Double {
         let maxIndex = Double(self.data.count - 1)
         if index < 0 {
-            index = 0
-        } else if index > maxIndex {
-            index = maxIndex
+            return 0
         }
-        self.currentIndex = index
-        self.finalCurrentIndex = Int(index)
+        if index > maxIndex {
+            return maxIndex
+        }
+        return index
+    }
+    
+    private func updateIndices() {
+        let index = round(self.currentIndex)
+        self.currentIndex = Double(self.getSafeIndex(index))
+        self.finalCurrentIndex = Int(self.currentIndex)
     }
     
     private func zIndex(for index: Int) -> Double {
